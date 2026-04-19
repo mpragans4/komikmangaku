@@ -7,6 +7,15 @@ const https = require("https");
 const { URL } = require("url");
 const crypto = require("crypto");
 const path = require("path");
+const fs = require("fs");
+
+// --- Load custom CSS at startup ---
+let CUSTOM_CSS = "";
+try {
+  CUSTOM_CSS = fs.readFileSync(path.join(__dirname, "public", "css", "custom.css"), "utf-8");
+} catch {
+  console.warn("[WARN] public/css/custom.css not found, custom UI will not be applied");
+}
 
 // ============================================================
 // CONFIGURATION
@@ -278,7 +287,9 @@ function rewriteHTML(html, mirrorDomain, originHost, requestPath) {
   $("head").append('<meta name="robots" content="index, follow" />');
 
   // --- 2b. INJECT CUSTOM CSS FOR MODERN UI ---
-  $("head").append('<link rel="stylesheet" href="/mirror-assets/css/custom.css">');
+  if (CUSTOM_CSS) {
+    $("head").append(`<style id="mirror-custom-css">${CUSTOM_CSS}</style>`);
+  }
 
   // --- 3. OG / TWITTER META TAGS: rewrite URLs ---
   $(
@@ -530,14 +541,6 @@ const limiter = rateLimit({
   message: "Too many requests, please try again later.",
 });
 app.use(limiter);
-
-// Serve custom mirror assets (CSS/JS overrides) — dedicated route for reliability
-const CUSTOM_CSS = require("fs").readFileSync(path.join(__dirname, "public", "css", "custom.css"), "utf-8");
-app.get("/mirror-assets/css/custom.css", (req, res) => {
-  res.setHeader("Content-Type", "text/css; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=604800, immutable");
-  res.status(200).send(CUSTOM_CSS);
-});
 
 // Health check endpoint
 app.get("/health", (req, res) => {
