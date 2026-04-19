@@ -43,7 +43,7 @@ const CONFIG = {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
 
   // Rate limit per IP (requests per 15 min window)
-  RATE_LIMIT: parseInt(process.env.RATE_LIMIT, 10) || 200,
+  RATE_LIMIT: parseInt(process.env.RATE_LIMIT, 10) || 1000,
 
   // Whitelisted external CDN domains to proxy images from
   IMAGE_PROXY_DOMAINS: (process.env.IMAGE_PROXY_DOMAINS || "").split(",").filter(Boolean).concat([
@@ -532,13 +532,20 @@ app.set("trust proxy", 1);
 // Gzip compression
 app.use(compression());
 
-// Rate limiting
+// Rate limiting (only HTML pages, not assets/images)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: CONFIG.RATE_LIMIT,
   standardHeaders: true,
   legacyHeaders: false,
   message: "Too many requests, please try again later.",
+  skip: (req) => {
+    const p = req.path;
+    return p.startsWith("/img-proxy") || p.startsWith("/assets/") || p.startsWith("/mirror-assets/")
+      || p.endsWith(".css") || p.endsWith(".js") || p.endsWith(".png") || p.endsWith(".jpg")
+      || p.endsWith(".jpeg") || p.endsWith(".webp") || p.endsWith(".ico") || p.endsWith(".woff2")
+      || p.endsWith(".woff") || p.endsWith(".ttf") || p.endsWith(".svg");
+  },
 });
 app.use(limiter);
 
